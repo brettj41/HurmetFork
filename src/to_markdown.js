@@ -81,6 +81,28 @@ const maxBacktickCount = str => {
 
 const ampRegEx = /=[^=]*@[^=]*$/
 
+const escapeEmbedAttr = value => String(value)
+  .replace(/\\/g, "\\\\")
+  .replace(/"/g, '\\"')
+  .replace(/\n/g, "\\n")
+
+const embedAttrsToString = attrs => {
+  const parts = []
+  const pushAttr = (key, value) => {
+    if (value != null && value !== "") {
+      parts.push(`${key}="${escapeEmbedAttr(value)}"`)
+    }
+  }
+  pushAttr("src", attrs.src)
+  pushAttr("title", attrs.title)
+  pushAttr("width", attrs.width)
+  pushAttr("height", attrs.height)
+  pushAttr("sandbox", attrs.sandbox)
+  pushAttr("allow", attrs.allow)
+  pushAttr("appState", attrs.appState)
+  return parts.length ? " " + parts.join(" ") : ""
+}
+
 const indentBlankLines = (state, prevLength) => {
   const block = state.out.slice(prevLength + 1).replace(/\n\n/g, `\n${state.delim + "   "}\n`)
   state.out = state.out.slice(0, prevLength + 1) + block
@@ -290,6 +312,10 @@ const hurmetNodes =  {
       state.write(`![${ref}][]`)
     }
 
+  },
+  embed(state, node) {
+    state.write("```embed" + embedAttrsToString(node.attrs) + "\n```")
+    state.closeBlock(node)
   },
   hard_break(state, node, parent, index) {
     for (let i = index + 1; i < parent.childCount; i++)

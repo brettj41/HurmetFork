@@ -77,6 +77,7 @@ const hurmetIcons = {
     height: 16,
     path: "M14.998 2c0.001 0.001 0.001 0.001 0.002 0.002v11.996c-0.001 0.001-0.001 0.001-0.002 0.002h-13.996c-0.001-0.001-0.001-0.001-0.002-0.002v-11.996c0.001-0.001 0.001-0.001 0.002-0.002h13.996zM15 1h-14c-0.55 0-1 0.45-1 1v12c0 0.55 0.45 1 1 1h14c0.55 0 1-0.45 1-1v-12c0-0.55-0.45-1-1-1v0z M13 4.5c0 0.828-0.672 1.5-1.5 1.5s-1.5-0.672-1.5-1.5 0.672-1.5 1.5-1.5 1.5 0.672 1.5 1.5z M14 13h-12v-2l3.5-6 4 5h1l3.5-3z"
   },
+  embed: { text: "</>" },
   comment: {
     width: 1024,
     height: 1024,
@@ -839,6 +840,7 @@ function toggleSpreadsheet() {
 }
 
 const linkProtocol = /^(https?:\/\/|data:image\/)/i
+const embedProtocol = /^https?:\/\//i
 
 // A dialog box use for writing a link to an image, editing an image, or uploading an image.
 const imagePromptOptions = (
@@ -920,6 +922,59 @@ function insertLinkToImage(nodeType) {
         }
       } else if (attrs && attrs.src) {
         promptOptions.src = attrs.src
+      }
+      openPrompt(promptOptions)
+    }
+  })
+}
+
+function insertEmbed(nodeType) {
+  return new MenuItem({
+    title: "Insert an embed or edit existing embed",
+    label: "Embed…",
+    icon: hurmetIcons.embed,
+    enable(state) {
+      return canInsert(state, nodeType)
+    },
+    run(state, _, view) {
+      let attrs = null
+      if (state.selection instanceof NodeSelection && state.selection.node.type == nodeType) {
+        attrs = state.selection.node.attrs
+      }
+      const promptOptions = {
+        title: "Embed",
+        note: "Defaults: sandbox=\"allow-same-origin\" (scripts disabled) and allow=\"\".",
+        fields: {
+          src: new TextField({ label: "Embed URL", required: true, value: attrs && attrs.src }),
+          title: new TextField({ label: "Title (optional)", value: attrs && attrs.title }),
+          width: new TextField({ label: "Width (e.g. 100% or 640)", value: attrs && attrs.width }),
+          height: new TextField({ label: "Height (e.g. 315)", value: attrs && attrs.height }),
+          sandbox: new TextField({
+            label: "Sandbox (space-separated tokens)",
+            value: (attrs && attrs.sandbox) || "allow-same-origin"
+          }),
+          allow: new TextField({
+            label: "Allow (feature policy)",
+            value: attrs && attrs.allow
+          }),
+          appState: new TextAreaField({
+            label: "App state (optional JSON or serialized state)",
+            value: attrs && attrs.appState
+          })
+        },
+        callback(formAttrs) {
+          if (formAttrs.src && !embedProtocol.test(formAttrs.src)) {
+            alert("Error: Embed URLs must begin with https:// or http://")
+            return
+          }
+          if (!formAttrs.sandbox) { formAttrs.sandbox = "allow-same-origin" }
+          if (!formAttrs.allow) { formAttrs.allow = "" }
+          if (!formAttrs.appState) { formAttrs.appState = null }
+          const tr = view.state.tr
+          tr.replaceSelectionWith(nodeType.createAndFill(formAttrs))
+          view.dispatch(tr)
+          view.focus()
+        }
       }
       openPrompt(promptOptions)
     }
@@ -1786,6 +1841,7 @@ export function buildMenuItems(schema) {
 
   if ((type = schema.nodes.image)) r.imageUpload = uploadImage(type)
   if ((type = schema.nodes.image)) r.imageLink = insertLinkToImage(type)
+  if ((type = schema.nodes.embed)) r.embed = insertEmbed(type)
   if ((type = schema.nodes.footnote)) r.footnote = footnote(type)
   if ((type = schema.nodes.toc)) r.toc = insertToC(type)
   r.macroButton = macroButton()
@@ -2101,6 +2157,7 @@ export function buildMenuItems(schema) {
     r.pageBreak,
     r.imageUpload,
     r.imageLink,
+    r.embed,
     r.footnote,
     r.toc,
     r.toggleComment
