@@ -81,6 +81,77 @@ export class TexView {
   stopEvent() { return true }
 }
 
+export class EmbedView {
+  constructor(node, view) {
+    this.node = node
+    this.outerView = view
+    this.dom = document.createElement("div")
+    this.dom.className = "embed"
+    this.dom.setAttribute("data-embed", "true")
+    this.dom.contentEditable = "false"
+    this.iframe = document.createElement("iframe")
+    this.iframe.className = "embed-frame"
+    this.iframe.setAttribute("loading", "lazy")
+    this.dom.appendChild(this.iframe)
+    this.updateAttrs(node.attrs)
+  }
+
+  updateAttrs(attrs) {
+    this.iframe.setAttribute("src", attrs.src || "")
+    if (attrs.title) {
+      this.iframe.setAttribute("title", attrs.title)
+    } else {
+      this.iframe.removeAttribute("title")
+    }
+    if (attrs.width) {
+      this.iframe.setAttribute("width", attrs.width)
+      this.iframe.style.width = attrs.width
+    } else {
+      this.iframe.removeAttribute("width")
+      this.iframe.style.removeProperty("width")
+    }
+    if (attrs.height) {
+      this.iframe.setAttribute("height", attrs.height)
+      this.iframe.style.height = attrs.height
+    } else {
+      this.iframe.removeAttribute("height")
+      this.iframe.style.removeProperty("height")
+    }
+    if (attrs.sandbox) {
+      this.iframe.setAttribute("sandbox", attrs.sandbox)
+    } else {
+      this.iframe.removeAttribute("sandbox")
+    }
+    if (attrs.allow) {
+      this.iframe.setAttribute("allow", attrs.allow)
+    } else {
+      this.iframe.removeAttribute("allow")
+    }
+    if (attrs.appState) {
+      this.iframe.setAttribute("data-app-state", attrs.appState)
+    } else {
+      this.iframe.removeAttribute("data-app-state")
+    }
+  }
+
+  selectNode() {
+    this.dom.classList.add("ProseMirror-selectednode")
+  }
+
+  deselectNode() {
+    this.dom.classList.remove("ProseMirror-selectednode")
+  }
+
+  update(node) {
+    if (!node.sameMarkup(this.node)) { return false }
+    this.node = node
+    this.updateAttrs(node.attrs)
+    return true
+  }
+
+  stopEvent() { return true }
+}
+
 export class CellView {
   // For a spreadsheet cell.
   // This just freezes the cell. If an author wants to edit anything in

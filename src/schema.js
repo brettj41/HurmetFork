@@ -279,6 +279,49 @@ export const nodes = {
     }
   },
 
+  // A sandboxed embed. Default sandbox forbids scripts and top-level navigation.
+  embed: {
+    atom: true,
+    group: "block",
+    selectable: true,
+    attrs: {
+      src: { validate: "string" },
+      title: { default: null, validate: "null|string" },
+      width: { default: "100%", validate: "string" },
+      height: { default: "315", validate: "string" },
+      sandbox: { default: "allow-same-origin", validate: "string" },
+      allow: { default: "", validate: "string" },
+      appState: { default: null, validate: "null|string" }
+    },
+    parseDOM: [{tag: "iframe[data-embed]", getAttrs(dom) {
+      return {
+        src: dom.getAttribute("src"),
+        title: dom.getAttribute("title"),
+        width: dom.getAttribute("width"),
+        height: dom.getAttribute("height"),
+        sandbox: dom.getAttribute("sandbox"),
+        allow: dom.getAttribute("allow"),
+        appState: dom.getAttribute("data-app-state")
+      }
+    }}],
+    toDOM(node) {
+      const attrs = {
+        src: node.attrs.src,
+        title: node.attrs.title,
+        width: node.attrs.width,
+        height: node.attrs.height,
+        sandbox: node.attrs.sandbox,
+        allow: node.attrs.allow,
+        "data-app-state": node.attrs.appState,
+        "data-embed": "true"
+      }
+      Object.keys(attrs).forEach(key => {
+        if (attrs[key] == null || attrs[key] === "") { delete attrs[key] }
+      })
+      return ["iframe", attrs]
+    }
+  },
+
   footnote: {
     group: "inline",
     content: "inline*",

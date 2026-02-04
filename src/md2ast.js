@@ -57,6 +57,9 @@
  * 21. [#1] is a reference to a citation. (future)
  *     [#1]: The body of the citation is deferred, similar to reference links.
  * 22. Line blocks begin with "| ", as per Pandoc. (future)
+ * 23. Embed blocks use fenced syntax:
+ *     ```embed src="https://..." width="100%" height="315" sandbox="allow-same-origin" allow=""
+ *     ```
  *
  * copyright (c) 2021 - 2025 Ron Kok
  *
@@ -100,6 +103,8 @@ const COL_WIDTHS_R = /(?:^| )colWidths="([^"]*)"/
 const ID_R = /(?:^| )#([A-Za-z][A-Za-z0-9]*)(?: |$)/
 const leadingSpaceRegEx = /^ +/
 const trailingSpaceRegEx = / +$/
+const EMBED_ATTR_R = /([A-Za-z][A-Za-z0-9_-]*)="((?:\\.|[^"\\])*)"/g
+const EMBED_FENCE_R = /^```embed(?:[ \t]+([^\n]*))?\n(?:\n)?```(?:\n+|$)/
 
 // Turn various whitespace into easy-to-process whitespace
 const preprocess = function(source) {
@@ -640,7 +645,21 @@ const parseTextMark = (capture, state, mark, href) => {
   return text
 }
 
-const BLOCK_HTML = /^ *(?:<(head|h[1-6]|p|pre|label|script|style|table)[\s>][\s\S]*?(?:<\/\1>[^\n]*\n)|<(?:\/?(?:!DOCTYPE html|body|li|br|hr|(?:div|article|details|input|ul|ol|dl|main|nav)(?: (?:class|id|name|style|type)=(["'])[A-Za-z0-9_.:;\- ]+\2){0,2})|\/?html(?: lang=(["'])[a-z]+\3)?)>[^\n]*?(?:\n|$))/
+const BLOCK_HTML = /^ *(?:<(head|h[1-6]|p|pre|label|script|style|table|iframe)[\s>][\s\S]*?(?:<\/\1>[^\n]*\n)|<(?:\/?(?:!DOCTYPE html|body|li|br|hr|(?:div|article|details|input|ul|ol|dl|main|nav)(?: (?:class|id|name|style|type)=(["'])[A-Za-z0-9_.:;\- ]+\2){0,2})|\/?html(?: lang=(["'])[a-z]+\3)?)>[^\n]*?(?:\n|$))/
+
+const parseEmbedAttrs = line => {
+  const attrs = {}
+  let match
+  while ((match = EMBED_ATTR_R.exec(line)) !== null) {
+    const key = match[1]
+    const value = match[2]
+      .replace(/\\n/g, "\n")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\")
+    attrs[key] = value
+  }
+  return attrs
+}
 
 // Rules must be applied in a specific order, so use a Map instead of an object.
 const rules = new Map();
@@ -699,6 +718,14 @@ rules.set("page_break", {
   match: blockRegex(/^\\newpage\n\n/),
   parse: function(capture, parse, state) {
     return { type: "page_break" };
+  }
+});
+rules.set("embed", {
+  isLeaf: true,
+  match: blockRegex(EMBED_FENCE_R),
+  parse: function(capture, state) {
+    const attrs = parseEmbedAttrs(capture[1] || "")
+    return { type: "embed", attrs }
   }
 });
 rules.set("codeBlock", {
